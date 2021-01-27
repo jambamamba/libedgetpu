@@ -19,5 +19,15 @@ libedgetpu_dependencies()
 load("@org_tensorflow//tensorflow:workspace.bzl", "tf_workspace")
 tf_workspace(tf_repo_name = "org_tensorflow")
 
-load("@coral_crosstool//:configure.bzl", "cc_crosstool")
-cc_crosstool(name = "crosstool")
+#load("@coral_crosstool//:configure.bzl", "cc_crosstool")
+#cc_crosstool(name = "crosstool")
+
+##########################################################################
+local_repository(name = 'coral_crosstool1', path = 'coral_crosstool1')
+
+load("@coral_crosstool1//:environ.bzl", "a53_toolchain_repository")
+a53_toolchain_repository(name = "a53_toolchain")
+
+load("@coral_crosstool1//:configure.bzl", "cc_crosstool1")
+cc_crosstool1(name = "crosstool")
+

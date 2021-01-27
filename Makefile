@@ -18,15 +18,15 @@ OUT_DIR := $(MAKEFILE_DIR)/out
 OS := $(shell uname -s)
 
 ifeq ($(OS),Linux)
-CPU ?= k8
+CPU ?= a53
 else ifeq ($(OS),Darwin)
 CPU ?= darwin
 else
 $(error $(OS) is not supported)
 endif
 
-ifeq ($(filter $(CPU),k8 armv6 armv7a aarch64 darwin),)
-$(error CPU must be k8, armv7a, armv6, aarch64, or darwin)
+ifeq ($(filter $(CPU),k8 armv6 armv7a aarch64 darwin a53),)
+$(error CPU must be k8, armv7a, armv6, aarch64, darwin, or a53)
 endif
 
 COMPILATION_MODE ?= opt
@@ -38,13 +38,17 @@ BAZEL_OUT_DIR := $(MAKEFILE_DIR)/bazel-out/$(CPU)-$(COMPILATION_MODE)/bin
 
 # Linux-specific parameters
 BAZEL_BUILD_TARGET_Linux := //tflite/public:libedgetpu_direct_all.so
-BAZEL_BUILD_FLAGS_Linux := --crosstool_top=@crosstool//:toolchains \
-                           --compiler=gcc
+BAZEL_BUILD_FLAGS_Linux := -s --crosstool_top=@coral_crosstool1//:toolchains --cpu=$(CPU) --compiler=a53
 BAZEL_BUILD_OUTPUT_FILE_Linux := libedgetpu.so.1.0
 BAZEL_BUILD_OUTPUT_SYMLINK_Linux := libedgetpu.so.1
 
 ifeq ($(CPU), armv6)
 BAZEL_BUILD_FLAGS_Linux += --linkopt=-L/usr/lib/arm-linux-gnueabihf/
+endif
+
+#osm
+ifeq ($(CPU), a53)
+BAZEL_BUILD_FLAGS_Linux += --verbose_failures --linkopt=-L$(TOOLCHAIN_ROOT_DIR)/sysroots/aarch64-poky-linux/usr/lib --linkopt=-L$(shell pwd)/../libusb/builda53/
 endif
 
 # Darwin-specific parameters
@@ -55,9 +59,11 @@ BAZEL_BUILD_OUTPUT_SYMLINK_Darwin := libedgetpu.1.dylib
 # Common parameters
 BAZEL_BUILD_FLAGS := --sandbox_debug --subcommands \
   --experimental_repo_remote_exec \
+  --experimental_ui_max_stdouterr_bytes=-1 \
   --compilation_mode=$(COMPILATION_MODE) \
   --define darwinn_portable=1 \
   --action_env PYTHON_BIN_PATH=$(shell which $(PYTHON3)) \
+  --action_env TOOLCHAIN_ROOT_DIR=${TOOLCHAIN_ROOT_DIR} \
   --cpu=$(CPU) \
   --embed_label='TENSORFLOW_COMMIT=$(shell grep "TENSORFLOW_COMMIT =" $(MAKEFILE_DIR)/workspace.bzl | grep -o '[0-9a-f]\{40\}')' \
   --stamp
@@ -114,6 +120,7 @@ deb-arm64:
 	dpkg-buildpackage -rfakeroot -us -uc -tc -b -a arm64 -d
 
 clean:
+	bazel clean
 	rm -rf $(OUT_DIR)
 
 ################################################################################
